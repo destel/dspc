@@ -2,7 +2,6 @@ package dspc
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"iter"
@@ -95,68 +94,120 @@ func (s *progressState) rebuildSortedKeys() {
 	s.sortedKeys = slices.Sorted(maps.Keys(s.counters))
 }
 
-func (p *Progress) prettyPrintToBuffer(buf *bytes.Buffer, title string) {
+type entry struct {
+	key   string
+	value int64
+}
+
+type printingState struct {
+	buf     bytes.Buffer
+	entries []entry
+}
+
+func (p *Progress) prettyPrint(w io.Writer, title string, inPlace bool, state *printingState) error {
+	if state == nil {
+		var localState printingState
+		state = &localState
+	} else {
+		state.buf.Reset()
+		state.entries = state.entries[:0]
+	}
+
 	maxKeySize := 0
 	maxValueSize := 0
 
 	for key, value := range p.All() {
+		state.entries = append(state.entries, entry{key, value})
+
 		maxKeySize = max(maxKeySize, len(key))
 		maxValueSize = max(maxValueSize, digitCount(value))
 	}
 
+	if inPlace {
+		state.buf.WriteString("\033[J") // clear the screen after the cursor todo: always clear?
+		//state.buf.WriteString("\033[s") // save cursor position
+	}
+
 	// Start with a blank line
-	buf.WriteString("\033[K\n")
+	state.buf.WriteString("\n")
 
 	// Print the title
-	buf.WriteString("\033[K")
-	buf.WriteString(title)
-	buf.WriteString("\n")
+	state.buf.WriteString(title)
+	state.buf.WriteString("\n")
 
 	// Print the progress
-	for key, value := range p.All() {
-		buf.WriteString("\033[K")
-		fmt.Fprintf(buf, "  %-*s  %*d", maxKeySize, key, maxValueSize, value)
-		buf.WriteString("\n")
+	for _, entry := range state.entries {
+		fmt.Fprintf(&state.buf, "  %-*s  %*d", maxKeySize, entry.key, maxValueSize, entry.value)
+		state.buf.WriteString("\n")
 	}
 
 	// End with a blank line
-	buf.WriteString("\033[K\n")
-}
+	state.buf.WriteString("\n")
 
-func (p *Progress) PrettyPrint(w io.Writer, title string) error {
-	var buf bytes.Buffer
-	p.prettyPrintToBuffer(&buf, title)
-
-	// Try to write all at once
-	if _, err := w.Write(buf.Bytes()); err != nil {
-		return err // this should never happen for stdout or stderr
+	if inPlace {
+		//state.buf.WriteString("\033[u") // restore cursor position
+		fmt.Fprintf(&state.buf, "\033[%dA", len(state.entries)+3)
 	}
-	return nil
+
+	// Flush the buffer in a single Write call
+	_, err := w.Write(state.buf.Bytes())
+	return err
 }
 
-func (p *Progress) PrettyPrintEvery(ctx context.Context, w io.Writer, t time.Duration, title string) {
+// Usage:
+//
+//	stop := progress.PrettyPrintEvery(os.Stdout, time.Second, "Progress:")
+//	defer stop()
+//
+// Or better:
+//
+//	defer progress.PrettyPrintEvery(os.Stdout, time.Second, "Progress:")()
+func (p *Progress) PrettyPrintEvery(w io.Writer, t time.Duration, title string) func() {
+	stop := make(chan struct{})
+	done := make(chan struct{})
+
+	printError := func(err error) {
+		// Should never happen, especially when writing to stdout/stderr
+		fmt.Fprintln(os.Stderr, "Error writing progress:", err)
+	}
+
 	go func() {
-		var buf bytes.Buffer
+		defer close(done)
+
+		ticker := time.NewTicker(t)
+		defer ticker.Stop()
+
+		var state printingState
+
+		if err := p.prettyPrint(w, title, true, &state); err != nil {
+			printError(err)
+			return
+		}
 
 		for {
-			buf.Reset()
-			buf.WriteString("\033[s") // save cursor position
-			p.prettyPrintToBuffer(&buf, title)
-			buf.WriteString("\033[u") // restore cursor position
-
-			// Try to write all at once
-			if _, err := w.Write(buf.Bytes()); err != nil {
-				// this should never happen for stdout or stderr
-				fmt.Fprintln(os.Stderr, "Error writing progress:", err)
+			select {
+			case <-ticker.C:
+				if err := p.prettyPrint(w, title, true, &state); err != nil {
+					printError(err)
+					return
+				}
+			case <-stop:
+				// w/o ansi
+				if err := p.prettyPrint(w, title, false, &state); err != nil {
+					printError(err)
+				}
 				return
 			}
-
-			if ctx.Err() != nil {
-				return
-			}
-			time.Sleep(t)
 		}
+
 	}()
+
+	stopPrinting := func() {
+		close(stop)
+		<-done
+	}
+
+	return stopPrinting
 }
 
 func digitCount(n int64) int {
