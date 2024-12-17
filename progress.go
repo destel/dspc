@@ -1,3 +1,6 @@
+// Package dspc provides a progress counter for tracking and displaying
+// real-time progress of concurrent operations in terminal apps.
+// It's minimalistic, lock-free, zero-allocation and provides in-place pretty-printing out of the box.
 package dspc
 
 import (
@@ -11,6 +14,15 @@ import (
 	"time"
 )
 
+// Progress tracks multiple named counters. It's like a concurrent map[string]int64
+// but optimized for progress tracking with small, stable sets of keys (typically
+// fitting on a single screen).
+//
+// All operations are atomic, lock-free and safe for concurrent use.
+// After the set of keys stabilizes, Progress does zero allocations for all operations
+// including pretty-printing.
+//
+// The zero Progress is empty and ready for use
 type Progress struct {
 	state atomic.Pointer[progressState]
 
@@ -29,16 +41,22 @@ type entry struct {
 	value int64
 }
 
+// Inc atomically adds delta to the counter associated with the given key.
+// If the key doesn't exist, it's created with an initial value of 0 before adding delta.
 func (p *Progress) Inc(key string, delta int64) {
 	c := p.getOrCreateCounter(key)
 	atomic.AddInt64(c, delta)
 }
 
+// Set atomically sets the counter associated with the given key to value.
+// If the key doesn't exist, it's created with the specified value.
 func (p *Progress) Set(key string, value int64) {
 	c := p.getOrCreateCounter(key)
 	atomic.StoreInt64(c, value)
 }
 
+// Get returns the current value of the counter associated with key.
+// Returns 0 if the key doesn't exist.
 func (p *Progress) Get(key string) int64 {
 	state := p.state.Load()
 	if state == nil {
@@ -53,6 +71,9 @@ func (p *Progress) Get(key string) int64 {
 	return atomic.LoadInt64(counter)
 }
 
+// All returns an iterator over all counters in lexicographical key order.
+// The iterator yields (key, value) pairs. The values represent atomic snapshots
+// of the counters at the time they are read.
 func (p *Progress) All() iter.Seq2[string, int64] {
 	return func(yield func(string, int64) bool) {
 		state := p.state.Load()
@@ -162,6 +183,11 @@ func (p *Progress) prettyPrint(w io.Writer, title string, inPlace bool) error {
 	return err
 }
 
+// PrettyPrintEvery periodically prints the current state of Progress to w (typically stdout ot stderr).
+// It updates the output in-place and won't damage the log output of the application
+// (assuming logs are printed line by line).
+// PrettyPrintEvery returns the function that stops the printing when called.
+//
 // Usage:
 //
 //	stop := progress.PrettyPrintEvery(os.Stdout, time.Second, "Progress:")
@@ -170,6 +196,13 @@ func (p *Progress) prettyPrint(w io.Writer, title string, inPlace bool) error {
 // Or better:
 //
 //	defer progress.PrettyPrintEvery(os.Stdout, time.Second, "Progress:")()
+//
+// Example output:
+//
+//	Progress:
+//	  completed    15
+//	  failed       3
+//	  skipped      7
 func (p *Progress) PrettyPrintEvery(w io.Writer, t time.Duration, title string) func() {
 	stop := make(chan struct{})
 	done := make(chan struct{})
