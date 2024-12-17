@@ -1,7 +1,6 @@
 package dspc
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"iter"
@@ -14,11 +13,20 @@ import (
 
 type Progress struct {
 	state atomic.Pointer[progressState]
+
+	// for printing w/o allocations
+	buf     betterBuffer
+	entries []entry
 }
 
 type progressState struct {
 	counters   map[string]*int64
 	sortedKeys []string
+}
+
+type entry struct {
+	key   string
+	value int64
 }
 
 func (p *Progress) Inc(key string, delta int64) {
@@ -103,54 +111,54 @@ func (s *progressState) rebuildSortedKeys() {
 	s.sortedKeys = slices.Sorted(maps.Keys(s.counters))
 }
 
-type entry struct {
-	key   string
-	value int64
-}
-
 func (p *Progress) prettyPrint(w io.Writer, title string, inPlace bool) error {
+	p.buf.Reset()
+	p.entries = p.entries[:0]
+
 	maxKeySize := 0
 	maxValueSize := 0
 
-	entries := make([]entry, 0, p.size())
-
 	for key, value := range p.All() {
-		entries = append(entries, entry{key, value})
+		p.entries = append(p.entries, entry{key, value})
 
 		maxKeySize = max(maxKeySize, len(key))
 		maxValueSize = max(maxValueSize, digitCount(value))
 	}
 
-	var buf bytes.Buffer
-	buf.Grow(len(entries)*(maxKeySize+maxValueSize+16) + 64)
-
 	// clear the screen after the cursor
-	buf.WriteString("\033[J")
+	p.buf.WriteString("\033[J")
 
 	// Start with a blank line
-	buf.WriteString("\n")
+	p.buf.WriteString("\n")
 
 	// Print the title
-	buf.WriteString(title)
-	buf.WriteString("\n")
+	p.buf.WriteString(title)
+	p.buf.WriteString("\n")
 
 	// Print the progress
-	for _, ent := range entries {
-		fmt.Fprintf(&buf, "  %-*s  %*d", maxKeySize, ent.key, maxValueSize, ent.value)
-		buf.WriteString("\n")
+	for _, ent := range p.entries {
+		p.buf.WriteString("  ")
+		p.buf.WriteString(ent.key)
+		p.buf.WriteByteRepeated(' ', maxKeySize-len(ent.key))
+		p.buf.WriteString("  ")
+		p.buf.WriteByteRepeated(' ', maxValueSize-digitCount(ent.value))
+		p.buf.WriteInt64(ent.value)
+		p.buf.WriteString("\n")
 	}
 
 	// End with a blank line
-	buf.WriteString("\n")
+	p.buf.WriteString("\n")
 
 	if inPlace {
 		// Move the cursor up to the start of the progress.
 		// Works more reliably that doing save/restore of the cursor position.
-		fmt.Fprintf(&buf, "\033[%dA", len(entries)+3)
+		p.buf.WriteString("\033[")
+		p.buf.WriteInt(len(p.entries) + 3)
+		p.buf.WriteString("A")
 	}
 
 	// Flush the buffer in a single Write call
-	_, err := w.Write(buf.Bytes())
+	_, err := w.Write(p.buf.Bytes())
 	return err
 }
 
@@ -206,21 +214,4 @@ func (p *Progress) PrettyPrintEvery(w io.Writer, t time.Duration, title string) 
 	}
 
 	return stopPrinting
-}
-
-func digitCount(n int64) int {
-	if n == 0 {
-		return 1
-	}
-
-	count := 0
-	if n < 0 {
-		count = 1 // for the minus sign
-	}
-
-	for n != 0 {
-		n /= 10
-		count++
-	}
-	return count
 }

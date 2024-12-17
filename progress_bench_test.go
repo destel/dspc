@@ -100,7 +100,7 @@ func BenchmarkPrinting(b *testing.B) {
 	b.ReportAllocs()
 
 	for range b.N {
-		progress.prettyPrint(io.Discard, "Test progress:", false)
+		progress.prettyPrint(io.Discard, "Test progress:", true)
 	}
 
 }
