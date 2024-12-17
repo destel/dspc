@@ -108,12 +108,10 @@ func TestPrinting(t *testing.T) {
 	progress.Inc("bar", 20)
 	progress.Set("grault", 0)
 
-	var out customWriter
 	outParts := make([]string, 0, 5)
 	enough := make(chan struct{})
 
-	stop := progress.PrettyPrintEvery(&out, 100*time.Millisecond, "Test progress:")
-
+	var out customWriter
 	out.WriteFunc = func(p []byte) (n int, err error) {
 		outParts = append(outParts, string(p))
 		if len(outParts) == 2 {
@@ -121,6 +119,8 @@ func TestPrinting(t *testing.T) {
 		}
 		return len(p), nil
 	}
+
+	stop := progress.PrettyPrintEvery(&out, 100*time.Millisecond, "Test progress:")
 
 	<-enough
 	stop() // this should also print the final state w/o ansi
