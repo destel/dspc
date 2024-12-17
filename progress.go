@@ -60,6 +60,15 @@ func (p *Progress) All() iter.Seq2[string, int64] {
 	}
 }
 
+func (p *Progress) size() int {
+	state := p.state.Load()
+	if state == nil {
+		return 0
+	}
+
+	return len(state.counters)
+}
+
 func (p *Progress) getOrCreateCounter(key string) *int64 {
 	for {
 		state := p.state.Load()
@@ -99,58 +108,49 @@ type entry struct {
 	value int64
 }
 
-type printingState struct {
-	buf     bytes.Buffer
-	entries []entry
-}
-
-func (p *Progress) prettyPrint(w io.Writer, title string, inPlace bool, state *printingState) error {
-	if state == nil {
-		var localState printingState
-		state = &localState
-	} else {
-		state.buf.Reset()
-		state.entries = state.entries[:0]
-	}
-
+func (p *Progress) prettyPrint(w io.Writer, title string, inPlace bool) error {
 	maxKeySize := 0
 	maxValueSize := 0
 
+	entries := make([]entry, 0, p.size())
+
 	for key, value := range p.All() {
-		state.entries = append(state.entries, entry{key, value})
+		entries = append(entries, entry{key, value})
 
 		maxKeySize = max(maxKeySize, len(key))
 		maxValueSize = max(maxValueSize, digitCount(value))
 	}
 
-	if inPlace {
-		state.buf.WriteString("\033[J") // clear the screen after the cursor todo: always clear?
-		//state.buf.WriteString("\033[s") // save cursor position
-	}
+	var buf bytes.Buffer
+	buf.Grow(len(entries)*(maxKeySize+maxValueSize+16) + 64)
+
+	// clear the screen after the cursor
+	buf.WriteString("\033[J")
 
 	// Start with a blank line
-	state.buf.WriteString("\n")
+	buf.WriteString("\n")
 
 	// Print the title
-	state.buf.WriteString(title)
-	state.buf.WriteString("\n")
+	buf.WriteString(title)
+	buf.WriteString("\n")
 
 	// Print the progress
-	for _, entry := range state.entries {
-		fmt.Fprintf(&state.buf, "  %-*s  %*d", maxKeySize, entry.key, maxValueSize, entry.value)
-		state.buf.WriteString("\n")
+	for _, ent := range entries {
+		fmt.Fprintf(&buf, "  %-*s  %*d", maxKeySize, ent.key, maxValueSize, ent.value)
+		buf.WriteString("\n")
 	}
 
 	// End with a blank line
-	state.buf.WriteString("\n")
+	buf.WriteString("\n")
 
 	if inPlace {
-		//state.buf.WriteString("\033[u") // restore cursor position
-		fmt.Fprintf(&state.buf, "\033[%dA", len(state.entries)+3)
+		// Move the cursor up to the start of the progress.
+		// Works more reliably that doing save/restore of the cursor position.
+		fmt.Fprintf(&buf, "\033[%dA", len(entries)+3)
 	}
 
 	// Flush the buffer in a single Write call
-	_, err := w.Write(state.buf.Bytes())
+	_, err := w.Write(buf.Bytes())
 	return err
 }
 
@@ -177,9 +177,7 @@ func (p *Progress) PrettyPrintEvery(w io.Writer, t time.Duration, title string) 
 		ticker := time.NewTicker(t)
 		defer ticker.Stop()
 
-		var state printingState
-
-		if err := p.prettyPrint(w, title, true, &state); err != nil {
+		if err := p.prettyPrint(w, title, true); err != nil {
 			printError(err)
 			return
 		}
@@ -187,13 +185,13 @@ func (p *Progress) PrettyPrintEvery(w io.Writer, t time.Duration, title string) 
 		for {
 			select {
 			case <-ticker.C:
-				if err := p.prettyPrint(w, title, true, &state); err != nil {
+				if err := p.prettyPrint(w, title, true); err != nil {
 					printError(err)
 					return
 				}
 			case <-stop:
 				// w/o ansi
-				if err := p.prettyPrint(w, title, false, &state); err != nil {
+				if err := p.prettyPrint(w, title, false); err != nil {
 					printError(err)
 				}
 				return

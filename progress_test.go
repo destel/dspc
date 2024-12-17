@@ -2,6 +2,7 @@ package dspc
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -47,17 +48,12 @@ func TestIteration(t *testing.T) {
 	progress.Inc("foo3", -3)
 	progress.Inc("foo1", 4)
 
-	type Pair struct {
-		Key   string
-		Value int64
-	}
-
-	var actual []Pair
+	var actual []entry
 	for k, v := range progress.All() {
-		actual = append(actual, Pair{k, v})
+		actual = append(actual, entry{k, v})
 	}
 
-	expectSlice(t, actual, []Pair{{"foo1", 4}, {"foo2", 2}, {"foo3", -3}, {"foo4", 1}})
+	expectSlice(t, actual, []entry{{"foo1", 4}, {"foo2", 2}, {"foo3", -3}, {"foo4", 1}})
 }
 
 func TestConcurrency(t *testing.T) {
@@ -129,17 +125,17 @@ func TestPrinting(t *testing.T) {
 	<-enough
 	stop() // this should also print the final state w/o ansi
 
-	const expectedOutput = `
+	const expectedOutput = "\033[J" + `
 Test progress:
   bar       20
   foo     -100
   grault     0
 
 `
-	const ansiOutput = "\033[J" + expectedOutput + "\033[6A"
+	const inPlaceExpectedOutput = expectedOutput + "\033[6A"
 
 	expectValue(t, len(outParts), 3)
-	expectValue(t, outParts[0], ansiOutput)
-	expectValue(t, outParts[1], ansiOutput)
+	expectValue(t, outParts[0], inPlaceExpectedOutput)
+	expectValue(t, outParts[1], inPlaceExpectedOutput)
 	expectValue(t, outParts[2], expectedOutput)
 }
