@@ -1,13 +1,12 @@
 # DSPC
 
-DSPC - a dead simple progress counter for Go terminal apps. 
-Perfect for when you need to track progress of concurrent operations but a full monitoring stack would be overkill.
+DSPC - a dead simple progress counter for concurrent CLI tools in Go. 
 
 Think of it as a set of named atomic counters that:
-- **Lock-free** - faster than `map[string]int` in both single-threaded and multi-threaded scenarios
-- **Zero allocations** - after initialization
-- **Nice to look at** - real-time in-place updates in the terminal
-- **Minimalistic** - no dependencies, small API
+- **Fast** - lock and allocation free, faster than `map[string]int` in both single-threaded and multi-threaded scenarios
+- **Nice to look at** - clean, readable terminal output that updates in place
+- **Log-friendly** - won't interfere with your application's logging output in most cases
+- **Minimalistic** - no dependencies, tiny API
 
 
 
@@ -18,7 +17,6 @@ Think of it as a set of named atomic counters that:
 ```bash
 go get -u github.com/desel/dspc
 ```
-
 
 
 
@@ -37,33 +35,21 @@ progress.Inc("errors", 1)
 progress.Inc("skipped", 1)
 ```
 
-## When you may (or may not) need it
-- You write CLI tools that process data in parallel and launch them:
-  - Locally
-  - Remotely via SSH
-  - In kubernetes via `kubectl exec`
-  - In kubernetes as one-off job that's monitored via `kubectl logs -f`
-- Your tool is too small to justify adding a monitoring stack or configuring dashboards
-- You need multiple counters and tired of declaring atomic variables for each of them
-- You want clean, in-place progress updates in the terminal 
-- Your list of counters is dynamic (e.g., counting errors by type - "validation_error", "network_error", etc.)
-- You find yourself copy-pasting the same counter tracking code between projects
+## Perfect when
+- Building concurrent CLI tools 
+- Counter-based tracking is sufficient
+- Want to track progress via stdout/stderr or log tailers - `tail -f`, `kubectl logs -f` etc
+- Need to track dynamic categories (e.g., counting errors by type - "validation_error", "network_error", etc.) 
+- Want clean progress output that doesn't interfere with normal application logs
+
+## Not a good fit if
+- Building a long-running service/daemeon
+- Need a large number of counters that don't fit on a single screen when printed
+- Application produces a lot of log output (e.g., logs every 10ms) - the progress output might be lost in the log stream 
+- Need something more complex than a simple counter (e.g., percentage, rate, progress bar etc.)
 
 
-## Customizing the output
-It's possible to iterate over all available counters and print them in a custom way. For example:
-```go
-for key, value := range progress.All() {
-    fmt.Printf("[%s]  %d\n", key, value)
-}
-```
-
-
-
-
-
-
-## Benchmarks
+## Performance
 ```
 cpu: Apple M2 Max
 BenchmarkSingleThreaded/Map-12         135504824    8.911 ns/op    0 B/op    0 allocs/op
