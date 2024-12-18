@@ -9,7 +9,6 @@ import (
 	"iter"
 	"maps"
 	"os"
-	"slices"
 	"sync/atomic"
 	"time"
 )
@@ -116,20 +115,18 @@ func (p *Progress) getOrCreateCounter(key string) *int64 {
 		if state != nil {
 			newState.counters = make(map[string]*int64, len(state.counters)+1)
 			maps.Copy(newState.counters, state.counters)
+			newState.counters[key] = newCounter
+
+			newState.sortedKeys = cloneSortedSliceAndInsert(state.sortedKeys, key)
 		} else {
-			newState.counters = make(map[string]*int64, 1)
+			newState.counters = map[string]*int64{key: newCounter}
+			newState.sortedKeys = []string{key}
 		}
-		newState.counters[key] = newCounter
-		newState.rebuildSortedKeys()
 
 		if p.state.CompareAndSwap(state, newState) {
 			return newCounter
 		}
 	}
-}
-
-func (s *progressState) rebuildSortedKeys() {
-	s.sortedKeys = slices.Sorted(maps.Keys(s.counters))
 }
 
 func (p *Progress) prettyPrint(w io.Writer, title string, inPlace bool) error {

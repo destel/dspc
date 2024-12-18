@@ -2,6 +2,8 @@ package dspc
 
 import (
 	"bytes"
+	"cmp"
+	"slices"
 	"strconv"
 )
 
@@ -53,4 +55,16 @@ func digitCount(n int64) int {
 		count++
 	}
 	return count
+}
+
+// takes sorted slice and returns its copy with the new value inserted at the correct position
+func cloneSortedSliceAndInsert[T cmp.Ordered](s []T, v T) []T {
+	res := make([]T, len(s)+1)
+	pos, _ := slices.BinarySearch(s, v)
+
+	copy(res, s[:pos])
+	res[pos] = v
+	copy(res[pos+1:], s[pos:])
+
+	return res
 }
