@@ -35,6 +35,9 @@ progress.Inc("errors", 1)
 progress.Inc("skipped", 1)
 ```
 
+Check out a complete working [example](/example).
+
+
 ## Good when
 This library is a good fit for CLI applications that do concurrent work. 
 When running tasks across multiple goroutines, you'll likely want to track their progress - 
