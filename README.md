@@ -8,7 +8,7 @@ Think of it as a set of named atomic counters that are:
 - **Fast** - lock and allocation free, faster than `map[string]int` in both single-threaded and concurrent scenarios
 - **Nice to look at** - clean, readable terminal output that updates in-place
 - **Log-friendly** - don't interfere with your application's log output
-- **Minimalistic** - no dependencies, tiny API
+- **Minimalistic** - no dependencies, no configuration, tiny API
 
 
 ## Installation
@@ -40,8 +40,8 @@ Check out a complete example [here](/example/main.go).
 ## When to Use
 This library is a good fit for CLI applications that do concurrent work.
 When running tasks across multiple goroutines, you usually need to track their progress -
-the number of completed tasks, errors, tasks currently in progress. You may also want to track dynamic categories -
-like counting errors by type - "validation_error", "network_error", etc.
+the number of tasks that are completed, failed or currently in progress. You may also want to track dynamic categories -
+different kinds of tasks, or types of errors (e.g., "validation_error", "network_error", etc).
 
 When running the app in terminal, you want to see a clean progress report that updates in real-time,
 while keeping your normal application logs readable and separate.
@@ -49,8 +49,8 @@ while keeping your normal application logs readable and separate.
 Another example is running such apps in Kubernetes. For simple one-off pods, instead of configuring metrics and dashboards, you
 may just want to watch the logs and progress reports in real-time with `kubectl logs -f`.
 
-DSPC can also help to debug concurrent applications - just add a few counters to see what's moving and what's stuck,
-without setting up complex instrumentation.
+DSPC can also help to debug concurrent applications too. 
+Add a few counters across your goroutines to see which ones are making progress and which ones are stuck.
 
 If such use cases sound familiar, DSPC is what you need.
 
