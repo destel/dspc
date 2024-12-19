@@ -18,8 +18,7 @@ import (
 // fitting on a single screen).
 //
 // All operations are atomic, lock-free and safe for concurrent use.
-// After the set of keys stabilizes, Progress does zero allocations for all operations
-// including pretty-printing.
+// After the set of keys becomes stable, Progress does zero allocations for all operations.
 //
 // The zero Progress is empty and ready for use
 type Progress struct {
@@ -197,9 +196,9 @@ func (p *Progress) prettyPrint(w io.Writer, title string, inPlace bool) error {
 // Example output:
 //
 //	Progress:
-//	  completed    15
-//	  failed       3
-//	  skipped      7
+//	  completed  15
+//	  failed      3
+//	  skipped     7
 func (p *Progress) PrettyPrintEvery(w io.Writer, t time.Duration, title string) func() {
 	stop := make(chan struct{})
 	done := make(chan struct{})
