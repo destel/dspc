@@ -2,7 +2,6 @@ package dspc
 
 import (
 	"fmt"
-	"os"
 	"sync"
 	"testing"
 	"time"
