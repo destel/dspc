@@ -1,4 +1,4 @@
-# DSPC
+# DSPC [![GoDoc](https://pkg.go.dev/badge/github.com/destel/dspc)](https://pkg.go.dev/github.com/destel/dspc)
 
 DSPC - a dead simple progress counter for concurrent CLI apps in Go.
 
