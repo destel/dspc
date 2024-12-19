@@ -4,10 +4,10 @@ DSPC - a dead simple progress counter for concurrent CLI apps in Go.
 
 ![DSPC demo: progress report along with the log output](demo.svg)
 
-Think of it as a set of named atomic counters that is:
+Think of it as a set of named atomic counters that are:
 - **Fast** - lock and allocation free, faster than `map[string]int` in both single-threaded and concurrent scenarios
-- **Nice to look at** - clean, readable terminal output that updates in place
-- **Log-friendly** - won't interfere with your application's log output
+- **Nice to look at** - clean, readable terminal output that updates in-place
+- **Log-friendly** - don't interfere with your application's log output
 - **Minimalistic** - no dependencies, tiny API
 
 
@@ -28,29 +28,31 @@ var progress dspc.Progress
 defer progress.PrettyPrintEvery(os.Stdout, 1*time.Second, "Progress:")()
 
 
-// Then, in worker goroutines increment/decrement/set counters as needed 
+// Then, in worker goroutines just increment/decrement/set counters as needed 
 progress.Inc("ok", 1)
 progress.Inc("errors", 1)
 progress.Inc("skipped", 1)
 ```
 
-Check out a complete working [example](/example/main.go).
+Check out a complete example [here](/example/main.go).
 
 
-## Use Cases
-This library is a good fit for CLI applications that do concurrent work. 
-When running tasks across multiple goroutines, you'll likely want to track their progress - 
-the number of completed tasks, errors, tasks currently in progress. You even may want to track dynamic categories -
+## When to Use
+This library is a good fit for CLI applications that do concurrent work.
+When running tasks across multiple goroutines, you usually need to track their progress -
+the number of completed tasks, errors, tasks currently in progress. You may also want to track dynamic categories -
 like counting errors by type - "validation_error", "network_error", etc.
 
-When running the app in terminal, you'll want to see a clean progress report that updates in real-time, 
+When running the app in terminal, you want to see a clean progress report that updates in real-time,
 while keeping your normal application logs readable and separate.
 
-Another example could be running such app in Kubernetes. For simple one-off pods, instead of configuring metrics and dashboards, you'll 
-likely want to just watch the logs and progress in real-time with `kubectl logs -f`.
+Another example is running such apps in Kubernetes. For simple one-off pods, instead of configuring metrics and dashboards, you
+may just want to watch the logs and progress reports in real-time with `kubectl logs -f`.
 
-If this sounds like your use case - tracking concurrent work with simple counters and clean terminal output - then DSPC is likely
-what you're looking for.
+DSPC can also help to debug concurrent applications - just add a few counters to see what's moving and what's stuck,
+without setting up complex instrumentation.
+
+If such use cases sound familiar, DSPC is what you need.
 
 
 
@@ -60,7 +62,7 @@ what you're looking for.
 - Long-running services/daemons
 - Large number of counters that don't fit on a single screen
 - Apps with high-frequency logging (e.g., logs every 10ms) - progress updates may get lost in the log stream 
-- Complex metrics - your monitoring needs are not covered by basic counters/gauges
+- Complex metrics - your monitoring needs are not covered by simple counters/gauges
 
 
 ## Performance

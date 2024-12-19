@@ -18,7 +18,6 @@ import (
 // fitting on a single screen).
 //
 // All operations are atomic, lock-free and safe for concurrent use.
-// After the set of keys becomes stable, Progress does zero allocations for all operations.
 //
 // The zero Progress is empty and ready for use
 type Progress struct {
