@@ -1,6 +1,4 @@
-// Package dspc provides a progress counter for tracking and displaying
-// real-time progress of concurrent operations in terminal apps.
-// It's minimalistic, lock-free, zero-allocation and provides in-place pretty-printing out of the box.
+// Package dspc provides tools for tracking progress of concurrent operations in a terminal.
 package dspc
 
 import (
@@ -13,11 +11,12 @@ import (
 	"time"
 )
 
-// Progress tracks multiple named counters. It's like a concurrent map[string]int64
-// but optimized for progress tracking with small, stable sets of keys (typically
+// Progress tracks multiple named counters. It's similar to a concurrent map[string]int64
+// but optimized for progress tracking for a small stable sets of keys (typically
 // fitting on a single screen).
 //
 // All operations are atomic, lock-free and safe for concurrent use.
+// Methods do not allocate memory in the hot path.
 //
 // The zero Progress is empty and ready for use
 type Progress struct {
