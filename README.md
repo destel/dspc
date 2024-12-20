@@ -1,10 +1,10 @@
-# DSPC [![GoDoc](https://pkg.go.dev/badge/github.com/destel/dspc)](https://pkg.go.dev/github.com/destel/dspc)
+# dspc [![GoDoc](https://pkg.go.dev/badge/github.com/destel/dspc)](https://pkg.go.dev/github.com/destel/dspc)
 
-DSPC - a dead simple progress counter for concurrent CLI apps in Go.
+Show progress of concurrent tasks in your Go CLI apps.
 
-![DSPC demo: progress report along with the log output](demo.svg)
+![dspc demo: progress report along with the log output](demo.svg)
 
-Think of it as a set of named atomic counters that are:
+Think of `dspc` as a set of named atomic counters which are:
 - **Fast** - lock and allocation free, faster than `map[string]int` in both single-threaded and concurrent scenarios
 - **Nice to look at** - clean, readable terminal output that updates in-place
 - **Log-friendly** - don't interfere with your application's log output
@@ -43,16 +43,16 @@ When running tasks across multiple goroutines, you usually need to track their p
 the number of tasks that are completed, failed or currently in progress. You may also want to track dynamic categories -
 different kinds of tasks, or types of errors (e.g., "validation_error", "network_error", etc).
 
-When running the app in terminal, you want to see a clean progress report that updates in real-time,
+When running the app in terminal, you want to see a clean progress report that updates in-place,
 while keeping your normal application logs readable and separate.
 
 Another example is running such apps in Kubernetes. For simple one-off pods, instead of configuring metrics and dashboards, you
 may just want to watch the logs and progress reports in real-time with `kubectl logs -f`.
 
-DSPC can also help to debug concurrent applications too. 
+dspc can also help to debug concurrent applications. 
 Add a few counters across your goroutines to see which ones are making progress and which ones are stuck.
 
-If such use cases sound familiar, DSPC is what you need.
+If such use cases sound familiar, dspc is what you need.
 
 
 
